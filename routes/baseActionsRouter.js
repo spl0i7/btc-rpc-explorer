@@ -28,6 +28,8 @@ router.get("/", function(req, res) {
 	}
 
 	var client = global.client;
+	var limit = 20;
+	var offset = 0;
 
 	rpcApi.getInfo().then(function(getinfo) {
 		res.locals.getinfo = getinfo;
@@ -42,8 +44,27 @@ router.get("/", function(req, res) {
 		rpcApi.getBlocksByHeight(blockHeights).then(function(latestBlocks) {
 			res.locals.latestBlocks = latestBlocks;
 
-			res.render("index");
+		client.cmd('getblockhash', getinfo.blocks, function(err, result, resHeaders) {
+			if (err) {
+				// TODO handle RPC error
+				return console.log(err);
+			}
+			res.locals.result = {};
+	
+			res.locals.result.getblockhash = result;
+	
+			rpcApi.getBlockData(client, result, limit, offset).then(function(result) {
+				res.locals.result.getblock = result.getblock;
+				res.locals.result.transactions = result.transactions;
+				res.locals.result.txInputsByTransaction = result.txInputsByTransaction;
+	
+				res.render("index");
+			});
 		});
+
+	});
+
+
 	}).catch(function(err) {
 		res.locals.userMessage = "Unable to connect to Bitcoin Node at " + env.bitcoind.host + ":" + env.bitcoind.port;
 
@@ -241,6 +262,7 @@ router.get("/block-height/:blockHeight", function(req, res) {
 	res.locals.offset = offset;
 	res.locals.paginationBaseUrl = "/block-height/" + blockHeight;
 
+	
 	client.cmd('getblockhash', blockHeight, function(err, result, resHeaders) {
 		if (err) {
 			// TODO handle RPC error

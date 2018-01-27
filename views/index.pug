@@ -24,6 +24,115 @@ block content
 
 	hr
 
+	h2(class="h4") Latest Transactions 
+			small  - Showing 
+			span all
+		
+	each tx, txIndex in result.transactions
+		div(class="card mb-3")
+			div(class="card-header")
+				if (tx && tx.txid)
+					a(href=("/tx/" + tx.txid), class="monospace") #{tx.txid}
+			div(class="card-body")
+				if (true)
+					div(class="row")
+						div(class="col-md-6")
+							h6 Input (#{tx.vin.length.toLocaleString()})
+							if (result.txInputsByTransaction[tx.txid])
+								- var totalInputValue = new Decimal(0);
+								table(class="table mb-0")
+									thead
+										tr
+											th(style="width: 40px;")
+											th Input
+											th Amount
+									tbody
+									
+									if (tx.vin[0].coinbase)
+										- totalInputValue = totalInputValue.plus(new Decimal(utils.getBlockReward(result.getblock.height)));
+										tr
+											th 1
+											td
+												span(class="tag monospace") coinbase
+												span(class="monospace")  Newly minted BTC
+											td(class="monospace") #{utils.getBlockReward(result.getblock.height)}
+
+									each txInput, txInputIndex in result.txInputsByTransaction[tx.txid]
+										if (txInput)
+											- var vout = txInput.vout[tx.vin[txInputIndex].vout];
+
+											tr
+												th #{(txInputIndex + 1)}
+												//pre
+												//	code #{JSON.stringify(txInput)}
+
+												td
+													if (vout.scriptPubKey && vout.scriptPubKey.addresses)
+														span(class="monospace") #{vout.scriptPubKey.addresses[0]}
+														br
+														span(class="monospace text-muted") via tx 
+														a(href=("/tx/" + txInput.txid + "#output-" + tx.vin[txInputIndex].vout), class="monospace") #{txInput.txid.substring(0, 14)}..., Output ##{tx.vin[txInputIndex].vout + 1}
+												td
+													if (vout.value)
+														- totalInputValue = totalInputValue.plus(new Decimal(vout.value));
+														span(class="monospace") #{vout.value}
+
+									- var coinbaseCount = tx.vin[0].coinbase ? 1 : 0;
+									if ((tx.vin.length - coinbaseCount) > result.txInputsByTransaction[tx.txid].length)
+										tr
+											td
+											td
+												span(class="monospace text-muted") #{(tx.vin.length - result.txInputsByTransaction[tx.txid].length).toLocaleString()} more...
+											td
+									else
+										tr
+											td
+											td
+											td
+												strong(class="monospace") #{totalInputValue}
+								
+
+						div(class="col-md-6")
+							h6 Output (#{tx.vout.length.toLocaleString()})
+							- var totalOutputValue = new Decimal(0);
+							table(class="table mb-0")
+								thead
+									tr
+										th
+										th Output
+										th Amount
+
+								tbody
+									each vout, voutIndex in tx.vout
+										tr
+											th #{(voutIndex + 1)}
+											td
+												if (vout.scriptPubKey)
+													if (vout.scriptPubKey.addresses)
+														a(id="output-" + voutIndex)
+															span(class="monospace") #{vout.scriptPubKey.addresses[0]}
+
+													else if (vout.scriptPubKey.hex && vout.scriptPubKey.hex.startsWith('6a24aa21a9ed'))
+														span(class="monospace") Segregated Witness committment - 
+														a(href="https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#commitment-structure") docs
+															i(class="fa fa-external-link")
+													else if (vout.scriptPubKey.asm && vout.scriptPubKey.asm.startsWith('OP_RETURN '))
+														span(class="monospace") OP_RETURN: 
+														span(class="monospace text-muted") #{utils.hex2ascii(vout.scriptPubKey.asm.substring("OP_RETURN ".length))}
+											td
+												span(class="monospace") #{vout.value}
+												- totalOutputValue = totalOutputValue.plus(vout.value);
+
+									tr
+										td
+										td
+										td
+											strong(class="monospace") #{totalOutputValue}
+		//pre
+		//	code #{JSON.stringify(tx, null, 4)}
+
+		hr
+
 	div(class="text-center")
 		:markdown-it
 			Public instance maintained at [https://btc-explorer.com](https://btc-explorer.com)
